@@ -1,28 +1,3 @@
-/*
- * The MIT License (MIT)
- *
- * Copyright (c) 2019 Ha Thach (tinyusb.org)
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- *
- */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -31,7 +6,8 @@
 #include "hardware/gpio.h"
 #include "pico/cyw43_arch.h"
 #include "tusb.h"
-#include "usb_descriptors.h"
+
+#include "usb/usb_descriptors.h"
 
 #define NUM_KEYS 2
 
@@ -107,13 +83,13 @@ void tud_resume_cb(void) { printf("Device resumed"); }
 //--------------------------------------------------------------------+
 
 static void send_hid_report(uint8_t report_id, uint32_t gpio) {
-  // skip if hid is not ready yet
+  // Skip if HID is not ready yet
   if (!tud_hid_ready())
     return;
 
   switch (report_id) {
   case REPORT_ID_KEYBOARD: {
-    // use to avoid send multiple consecutive zero report for keyboard
+    // Use to avoid sending multiple consecutive zero reports for keyboard
     static bool has_keyboard_key = false;
 
     if (gpio == 5) {
@@ -128,29 +104,28 @@ static void send_hid_report(uint8_t report_id, uint32_t gpio) {
 
       tud_hid_keyboard_report(REPORT_ID_KEYBOARD, 0, keycode);
       has_keyboard_key = true;
-
     } else {
-      // send empty key report if previously has key pressed
-      if (has_keyboard_key)
+      // Send empty key report if previously had key pressed
+      if (has_keyboard_key) {
         tud_hid_keyboard_report(REPORT_ID_KEYBOARD, 0, NULL);
+      }
       has_keyboard_key = false;
     }
-  } break;
+    break;
+  }
 
   case REPORT_ID_MOUSE: {
     int8_t const delta = 5;
 
-    // no button, right + down, no scroll, no pan
-    tud_hid_mouse_report(REPORT_ID_MOUSE, 0x00, delta, delta, 0, 0);
-  } break;
+    tud_hid_mouse_report(REPORT_ID_MOUSE, 0x00, delta, delta, 100, 0);
+    break;
+  }
+
   default:
     break;
   }
 }
 
-// Every 10ms, we will sent 1 report for each HID profile (keyboard, mouse etc
-// ..) tud_hid_report_complete_cb() is used to send the next report after
-// previous one is complete
 void hid_task(uint gpio) {
 
   // Remote wakeup
@@ -186,13 +161,7 @@ void tud_hid_report_complete_cb(uint8_t instance, uint8_t const *report,
 uint16_t tud_hid_get_report_cb(uint8_t instance, uint8_t report_id,
                                hid_report_type_t report_type, uint8_t *buffer,
                                uint16_t reqlen) {
-  // TODO not Implemented
-  (void)instance;
-  (void)report_id;
-  (void)report_type;
-  (void)buffer;
-  (void)reqlen;
-
+  // Needs to stay
   return 0;
 }
 
@@ -201,8 +170,6 @@ uint16_t tud_hid_get_report_cb(uint8_t instance, uint8_t report_id,
 void tud_hid_set_report_cb(uint8_t instance, uint8_t report_id,
                            hid_report_type_t report_type, uint8_t const *buffer,
                            uint16_t bufsize) {
-  (void)instance;
-
   if (report_type == HID_REPORT_TYPE_OUTPUT) {
     // Set keyboard LED e.g Capslock, Numlock etc...
     if (report_id == REPORT_ID_KEYBOARD) {
