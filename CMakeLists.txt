@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.29)
 
 include(pico_sdk_import.cmake)
 
@@ -11,17 +11,10 @@ pico_sdk_init()
 set(FAMILY rp2040)
 set(BOARD pico_sdk)
 
+add_subdirectory(src)
+
 add_executable(keyboard_firmware)
 
-target_sources(keyboard_firmware PUBLIC
-        ${CMAKE_CURRENT_LIST_DIR}/src/main.c
-        ${CMAKE_CURRENT_LIST_DIR}/src/usb/usb_descriptors.c
-        )
-
-# Make sure TinyUSB can find tusb_config.h
-target_include_directories(keyboard_firmware PUBLIC
-        ${CMAKE_CURRENT_LIST_DIR}/src/usb)
-
-target_link_libraries(keyboard_firmware PUBLIC pico_stdlib pico_unique_id tinyusb_device tinyusb_board pico_cyw43_arch_none hardware_pio)
+target_link_libraries(keyboard_firmware PRIVATE Main)
 
 pico_add_extra_outputs(keyboard_firmware)
