@@ -7,6 +7,8 @@
 #include "setup.h"
 #include <stdbool.h>
 
+#include "rotary.h"
+
 #define NUM_KEYS 2
 
 const unsigned int keys[NUM_KEYS] = {5, 10};
@@ -20,6 +22,8 @@ int main(void) {
   setup_tiny_usb();
 
   init_gpio_keys();
+
+  init_rotary();
 
   if (cyw43_arch_init()) {
     return -1;

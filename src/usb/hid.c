@@ -1,7 +1,63 @@
+#include "class/hid/hid.h"
 #include "bsp/board.h"
+#include "config.h"
+#include "pico/platform.h"
 #include "usb_descriptors.h"
 
-static void send_hid_report(uint8_t report_id, uint32_t gpio) {
+// For debugging and testing HID codes
+struct tracker {
+  uint layer;
+  uint sec;
+  uint thrd;
+};
+
+static struct tracker t = {0, 0, 0};
+
+uint16_t get_next_hid() {
+  if (t.thrd < 9)
+    t.thrd++;
+  else {
+    t.thrd = 0;
+    t.sec++;
+  }
+
+  if (t.sec > 3) {
+    t.sec = 0;
+    t.layer++;
+  }
+
+  if (t.layer > 2)
+    return 0;
+
+  return KEYMAP[t.layer][t.sec][t.thrd];
+}
+
+void send_value_down() {
+  // Skip if HID is not ready yet
+  if (!tud_hid_ready())
+    return;
+
+  tud_hid_mouse_report(REPORT_ID_MOUSE, 0x00, 0, 0, -100, 0);
+}
+
+void send_value_up() {
+  // Skip if HID is not ready yet
+  if (!tud_hid_ready())
+    return;
+
+  tud_hid_mouse_report(REPORT_ID_MOUSE, 0x00, 0, 0, 100, 0);
+}
+
+void send_value(uint32_t events) {
+  if (events)
+    send_value_up();
+  else
+    send_value_down();
+}
+
+// Debugging End
+
+static void send_hid_report(uint8_t report_id) {
   // Skip if HID is not ready yet
   if (!tud_hid_ready())
     return;
@@ -11,23 +67,19 @@ static void send_hid_report(uint8_t report_id, uint32_t gpio) {
     // Use to avoid sending multiple consecutive zero reports for keyboard
     static bool has_keyboard_key = false;
 
-    if (gpio == 5) {
+    if (!has_keyboard_key) {
       uint8_t keycode[6] = {0};
-      keycode[0] = HID_KEY_A;
+      uint16_t mod_key = get_next_hid();
 
-      tud_hid_keyboard_report(REPORT_ID_KEYBOARD, 0, keycode);
-      has_keyboard_key = true;
-    } else if (gpio == 10) {
-      uint8_t keycode[6] = {0};
-      keycode[0] = HID_KEY_B;
+      char mod = (mod_key >> 8) & 0xFF;
+      char key = mod_key & 0xFF;
 
-      tud_hid_keyboard_report(REPORT_ID_KEYBOARD, 0, keycode);
+      keycode[0] = key;
+
+      tud_hid_keyboard_report(REPORT_ID_KEYBOARD, mod, keycode);
       has_keyboard_key = true;
-    } else {
-      // Send empty key report if previously had key pressed
-      if (has_keyboard_key) {
-        tud_hid_keyboard_report(REPORT_ID_KEYBOARD, 0, NULL);
-      }
+    } else if (has_keyboard_key) {
+      tud_hid_keyboard_report(REPORT_ID_KEYBOARD, 0, NULL);
       has_keyboard_key = false;
     }
     break;
@@ -45,19 +97,7 @@ static void send_hid_report(uint8_t report_id, uint32_t gpio) {
   }
 }
 
-void hid_task(uint gpio) {
-
-  // Remote wakeup
-  if (tud_suspended() && gpio == 5) {
-    // Wake up host if we are in suspend mode
-    // and REMOTE_WAKEUP feature is enabled by host
-    tud_remote_wakeup();
-  } else {
-    // Send the 1st of report chain, the rest will be sent by
-    // tud_hid_report_complete_cb()
-    send_hid_report(REPORT_ID_KEYBOARD, gpio);
-  }
-}
+void hid_task(uint gpio) { send_hid_report(REPORT_ID_KEYBOARD); }
 
 // Invoked when sent REPORT successfully to host
 // Application can use this to send the next report
@@ -67,11 +107,13 @@ void tud_hid_report_complete_cb(uint8_t instance, uint8_t const *report,
   (void)instance;
   (void)len;
 
-  uint8_t next_report_id = report[0] + 1;
-
-  if (next_report_id < REPORT_ID_COUNT) {
-    send_hid_report(next_report_id, board_button_read());
+  if (t.layer == 2) {
+    t.thrd = 0;
+    t.sec = 0;
+    t.layer = 0;
+    return;
   }
+  // send_hid_report(REPORT_ID_KEYBOARD);
 }
 
 // Invoked when received GET_REPORT control request
