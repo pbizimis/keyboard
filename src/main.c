@@ -8,6 +8,7 @@
 #include <stdbool.h>
 
 #include "rotary.h"
+#include "oled.h"
 
 #define NUM_KEYS 2
 
@@ -24,6 +25,8 @@ int main(void) {
   init_gpio_keys();
 
   init_rotary();
+
+  init_oled();
 
   if (cyw43_arch_init()) {
     return -1;
