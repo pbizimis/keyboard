@@ -1,7 +1,8 @@
 #include "hardware/flash.h"
 #include "hardware/sync.h"
 #include <stdint.h>
-#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "flash.h"
 #include "oled.h"
@@ -49,28 +50,104 @@ void read_flash(uint8_t flash_buffer[FLASH_PAGE_SIZE]) {
   restore_interrupts(interrupts);
 }
 
-void save_to_flash() {
+enum CONTRAST_LEVEL { LOW, MID, HIGH };
+enum SYSTEM_STATUS { USER, FACTORY = 0xFF };
 
-  uint8_t flash_buffer[FLASH_PAGE_SIZE] = {0};
-  uint8_t new_flash_buffer[FLASH_PAGE_SIZE] = {0};
+struct KEYBOARD_SETTINGS {
+  enum CONTRAST_LEVEL contrast_level;
+};
 
-  init_flash();
-  read_flash(flash_buffer);
-  if (flash_buffer[0] == 0xFF)
-    render_font(0, 0, 2, 5, "FF1", FONT_IBM_BIOS);
-  erase_flash();
-  read_flash(flash_buffer);
-  if (flash_buffer[0] == 0xFF)
-    render_font(0, 10, 2, 5, "FF2", FONT_IBM_BIOS);
+struct KEYBOARD_CONFIG {
+  enum SYSTEM_STATUS system_status;
+  uint8_t pin[4];
+  char wifi_password[40];
+  struct KEYBOARD_SETTINGS settings;
+};
 
-  write_flash(new_flash_buffer);
-  read_flash(flash_buffer);
-  if (flash_buffer[0] == 0x00)
-    render_font(0, 20, 2, 5, "NOW 0", FONT_IBM_BIOS);
+void save_config_to_flash(struct KEYBOARD_CONFIG *keyboard_config) {
+  uint8_t config_buffer[FLASH_PAGE_SIZE];
 
-  render_buffer();
+  config_buffer[0] = (uint8_t)keyboard_config->system_status;
+
+  config_buffer[1] = keyboard_config->pin[0];
+  config_buffer[2] = keyboard_config->pin[1];
+  config_buffer[3] = keyboard_config->pin[2];
+  config_buffer[4] = keyboard_config->pin[3];
+
+  memcpy(config_buffer + 5, keyboard_config->wifi_password, 40);
+
+  config_buffer[45] = (uint8_t)keyboard_config->settings.contrast_level;
+
+  write_flash(config_buffer);
+}
+
+void read_config_from_flash(struct KEYBOARD_CONFIG *keyboard_config) {
+  uint8_t config_buffer[FLASH_PAGE_SIZE];
+  read_flash(config_buffer);
+
+  keyboard_config->system_status = (enum SYSTEM_STATUS)config_buffer[0];
+
+  keyboard_config->pin[0] = config_buffer[1];
+  keyboard_config->pin[1] = config_buffer[2];
+  keyboard_config->pin[2] = config_buffer[3];
+  keyboard_config->pin[3] = config_buffer[4];
+
+  memcpy(keyboard_config->wifi_password, config_buffer + 5, 40);
+
+  keyboard_config->settings.contrast_level =
+      (enum CONTRAST_LEVEL)config_buffer[45];
+}
+
+struct KEYBOARD_CONFIG *init_config() {
+  struct KEYBOARD_CONFIG *keyboard_config;
+  keyboard_config = malloc(sizeof(*keyboard_config));
+
+  read_config_from_flash(keyboard_config);
+
+  if (keyboard_config->system_status != USER) {
+    // TODO
+    // keyboard_setup(keyboard_config);
+    // call a function that goes through some of the settings such as:
+    // - setting a pin
+    // - setting a wifi password
+    // - setting an oled contrast
+    keyboard_config->system_status = USER;
+    keyboard_config->pin[0] = 1;
+    keyboard_config->pin[1] = 2;
+    keyboard_config->pin[2] = 3;
+    keyboard_config->pin[3] = 4;
+
+    save_config_to_flash(keyboard_config);
+  }
+
+  return keyboard_config;
 }
 
 void save_pin(char *pin) {}
 
 void save_wifi_password(char *password) {}
+
+void save_to_flash() {
+  // Temporary function for testing
+
+  uint8_t flash_buffer[FLASH_PAGE_SIZE] = {0};
+
+  init_flash();
+
+  read_flash(flash_buffer);
+  // This should only be true after nuking flash
+  // or a new device
+  if (flash_buffer[0] == 0xFF)
+    render_font(0, 0, 2, 5, "FF", FONT_IBM_BIOS);
+  render_buffer();
+
+  struct KEYBOARD_CONFIG *keyboard_config = init_config();
+
+  read_flash(flash_buffer);
+  if (flash_buffer[0] == 0x00)
+    render_font(0, 10, 2, 5, "User setup", FONT_IBM_BIOS);
+  if (flash_buffer[2] == 0x02)
+    render_font(0, 20, 2, 5, "Pin setup", FONT_IBM_BIOS);
+
+  render_buffer();
+}
