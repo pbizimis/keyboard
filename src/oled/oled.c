@@ -20,6 +20,7 @@
 
 // https://www.displayfuture.com/Display/datasheet/controller/SH1122.pdf
 
+#include "oled.h"
 #include "fonts/IBM_BIOS.h"
 #include "fonts/IBM_CGAthin.h"
 #include "hardware/gpio.h"
@@ -71,7 +72,7 @@ uint8_t buffer[64][256];
 
 void render_font(uint8_t x_offset, uint8_t y_offset, int8_t letter_spacing,
                  uint8_t space_spacing, char text[],
-                 const char **FONT_BITMAP_ARRAY) {
+                 enum FONT_TYPE font_type) {
 
   /*
    * Fonts are turned 90 degrees to the right
@@ -88,6 +89,15 @@ void render_font(uint8_t x_offset, uint8_t y_offset, int8_t letter_spacing,
 
   int empty_bits_in_row = 0;
   int letter_offset = 0;
+
+  const char **FONT_BITMAP_ARRAY;
+
+  switch (font_type) {
+  case FONT_IBM_BIOS:
+    FONT_BITMAP_ARRAY = IBM_BIOS;
+  case FONT_IBM_CGAthin:
+    FONT_BITMAP_ARRAY = IBM_CGAthin;
+  }
 
   for (int i = 0; text[i] != '\0'; i++) {
 
@@ -127,7 +137,7 @@ void clear_buffer(uint8_t buffer[64][256]) {
   }
 }
 
-void render_buffer(const uint8_t buffer[64][256]) {
+void render_buffer() {
 
   bool active = 0;
   uint8_t first_byte;
@@ -151,7 +161,7 @@ void render_buffer(const uint8_t buffer[64][256]) {
   }
 }
 
-int init_oled() {
+void init_oled() {
   setup_oled();
 
   gpio_put(OLED_RST_PIN, 0);
@@ -180,25 +190,26 @@ int init_oled() {
     }
   }
 
-  render_font(0, 0, 2, 3,
-              "Hello World",
-              IBM_CGAthin);
-  render_font(0, 10, 1, 5, "Hello World", IBM_BIOS);
+  render_font(0, 50, 2, 3, "Hello World", FONT_IBM_CGAthin);
 
-  render_buffer(buffer);
-  // clear_buffer(buffer);
+  render_buffer();
 
-  sleep_ms(500);
+  /*
+render_buffer(buffer);
+// clear_buffer(buffer);
 
-  write_cmd(OLED_SET_CONTRAST);
-  write_cmd(0x08);
+sleep_ms(500);
 
-  sleep_ms(500);
+write_cmd(OLED_SET_CONTRAST);
+write_cmd(0x08);
 
-  write_cmd(OLED_SET_CONTRAST);
-  write_cmd(0xFF);
+sleep_ms(500);
 
-  sleep_ms(500);
+write_cmd(OLED_SET_CONTRAST);
+write_cmd(0xFF);
+
+sleep_ms(500);
+*/
 
   /*
 for (int i = 0; i < 64; i++) {
@@ -208,5 +219,4 @@ for (int i = 0; i < 64; i++) {
   printf("\n");
 }
 */
-  return 0;
 }

@@ -15,6 +15,8 @@ add_subdirectory(src)
 
 add_executable(keyboard_firmware)
 
+pico_set_linker_script(keyboard_firmware ${CMAKE_CURRENT_LIST_DIR}/memmap_custom.ld)
+
 target_link_libraries(keyboard_firmware PRIVATE Main)
 
 pico_add_extra_outputs(keyboard_firmware)

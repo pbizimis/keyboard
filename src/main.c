@@ -9,6 +9,7 @@
 
 #include "rotary.h"
 #include "oled.h"
+#include "flash.h"
 
 #define NUM_KEYS 2
 
@@ -27,6 +28,7 @@ int main(void) {
   init_rotary();
 
   init_oled();
+  save_to_flash();
 
   if (cyw43_arch_init()) {
     return -1;
