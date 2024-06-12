@@ -146,8 +146,14 @@ void save_to_flash() {
   read_flash(flash_buffer);
   if (flash_buffer[0] == 0x00)
     render_font(0, 10, 2, 5, "User setup", FONT_IBM_BIOS);
+
+#ifdef MAIN_HALF
   if (flash_buffer[2] == 0x02)
-    render_font(0, 20, 2, 5, "Pin setup", FONT_IBM_BIOS);
+    render_font(0, 20, 2, 5, "MAIN_HALF", FONT_IBM_BIOS);
+#else
+  if (flash_buffer[2] == 0x02)
+    render_font(0, 20, 2, 5, "NOT_MAIN_HALF", FONT_IBM_BIOS);
+#endif
 
   render_buffer();
 }

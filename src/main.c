@@ -1,15 +1,18 @@
+#include "hardware/uart.h"
 #include "pico/stdio.h"
 
 #include "hardware/gpio.h"
 #include "pico/cyw43_arch.h"
 
 #include "hid.h"
+#include "pico/time.h"
 #include "setup.h"
 #include <stdbool.h>
 
-#include "rotary.h"
-#include "oled.h"
 #include "flash.h"
+#include "oled.h"
+#include "rotary.h"
+#include "uart.h"
 
 #define NUM_KEYS 2
 
@@ -30,13 +33,29 @@ int main(void) {
   init_oled();
   save_to_flash();
 
+  init_uart();
+
   if (cyw43_arch_init()) {
     return -1;
   }
   cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
 
+  int c2 = 30;
+
   while (1) {
     tud_task_tiny_usb();
+
+#ifndef MAIN_HALF
+    while (c2 < 120) {
+      uart_putc(uart0, c2++);
+      char sent[] = {83, c2};
+
+      render_font(50, 40, 2, 5, sent, FONT_IBM_BIOS);
+      render_buffer();
+      sleep_ms(100);
+    }
+
+#endif
   }
 }
 
