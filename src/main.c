@@ -10,6 +10,7 @@
 #include <stdbool.h>
 
 #include "flash.h"
+#include "keys.h"
 #include "oled.h"
 #include "rotary.h"
 #include "uart.h"
@@ -29,6 +30,8 @@ int main(void) {
   init_gpio_keys();
 
   init_rotary();
+
+  init_keys();
 
   init_oled();
   save_to_flash();
@@ -63,7 +66,7 @@ int main(void) {
 // Key init
 //--------------------------------------------------------------------+
 
-void gpio_callback(uint gpio, uint32_t events) {
+void gpio_callback_old(uint gpio, uint32_t events) {
   if (gpio == 5) {
     hid_task(5);
   } else if (gpio == 10) {
@@ -71,6 +74,7 @@ void gpio_callback(uint gpio, uint32_t events) {
   }
 }
 
+/*
 void init_gpio_keys() {
   for (int i = 0; i < NUM_KEYS; i++) {
     uint pin = keys[i];
@@ -81,3 +85,4 @@ void init_gpio_keys() {
                                        &gpio_callback);
   }
 }
+*/
