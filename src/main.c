@@ -1,3 +1,5 @@
+#include "device/usbd.h"
+#include "hardware/timer.h"
 #include "hardware/uart.h"
 #include "pico/stdio.h"
 
@@ -9,6 +11,7 @@
 #include "setup.h"
 #include <stdbool.h>
 
+#include "debounce.h"
 #include "flash.h"
 #include "keys.h"
 #include "oled.h"
@@ -19,6 +22,9 @@
 
 const unsigned int keys[NUM_KEYS] = {5, 10};
 
+static uint8_t active_keys[18] = {0};
+static uint32_t debounce_keys[18] = {0};
+
 void init_gpio_keys();
 
 /*------------- MAIN -------------*/
@@ -27,17 +33,14 @@ int main(void) {
 
   setup_tiny_usb();
 
-  init_gpio_keys();
-
   init_rotary();
-
-  init_keys();
 
   init_oled();
   save_to_flash();
 
   init_uart();
 
+  init_keys(active_keys, debounce_keys);
   if (cyw43_arch_init()) {
     return -1;
   }
@@ -47,6 +50,11 @@ int main(void) {
 
   while (1) {
     tud_task_tiny_usb();
+
+    handle_debounce(time_us_32(), active_keys, debounce_keys);
+    if (active_keys[1]) {
+      pressed_key(1);
+    }
 
 #ifndef MAIN_HALF
     while (c2 < 120) {

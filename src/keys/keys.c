@@ -41,7 +41,10 @@
  */
 
 #include "config.h"
+#include "debounce.h"
 #include "hardware/gpio.h"
+#include "hardware/timer.h"
+#include "hid.h"
 #include "oled.h"
 #include <stdint.h>
 
@@ -54,6 +57,9 @@
 #define KEYS_PER_HALF 18
 uint8_t GPIO_NUMBERS[KEYS_PER_HALF] = {4,  5,  6,  7,  8,  9,  10, 11, 12,
                                        13, 14, 15, 16, 17, 22, 26, 27, 28};
+
+uint8_t *active_keys;
+uint32_t *debounce_keys;
 
 enum ACTIVE_LAYER { FIRST, SECOND, THIRD, FOURTH, FIFTH, SIXTH };
 
@@ -94,7 +100,40 @@ void pressed_key(uint8_t key_number) {
 
   render_font(0, 0, 2, 5, key_arr, FONT_IBM_BIOS);
   render_buffer();
+
+  send_keyboard_report(hid_key_code, hid_modifier_code);
 }
+
+/****************/
+void render_arr_2(int i, int val) {
+  if (val)
+    render_font(30 + i * 8, 20, 2, 3, "1", FONT_IBM_CGAthin);
+  else
+    render_font(30 + i * 8, 20, 2, 3, "0", FONT_IBM_CGAthin);
+}
+/****************/
+
+void debounce_key(uint8_t key_number, uint32_t events) {
+
+  /*
+  for (int i = 0; i < 18; i++) {
+    render_arr_2(i, active_keys[i]);
+  }
+  render_buffer();
+    */
+
+  if (events == 1 << 2) {
+    if (active_keys[key_number])
+      return;
+
+    active_keys[key_number] = 1;
+
+  } else if (events == 1 << 3) {
+    if (active_keys[key_number] == 1 && debounce_keys[key_number] == 0) {
+      debounce_keys[key_number] = time_us_32() + 5000; // delay by 5ms
+    }
+  }
+};
 
 void gpio_callback(uint gpio, uint32_t events) {
   // switch case could be replaced by:
@@ -103,60 +142,61 @@ void gpio_callback(uint gpio, uint32_t events) {
   //      if (gpio == n)
   //          pressed_key(counter);
   //      counter++;
+
   switch (gpio) {
   case 4:
-    pressed_key(0);
+    debounce_key(0, events);
     break;
   case 5:
-    pressed_key(1);
+    debounce_key(1, events);
     break;
   case 6:
-    pressed_key(2);
+    debounce_key(2, events);
     break;
   case 7:
-    pressed_key(3);
+    debounce_key(3, events);
     break;
   case 8:
-    pressed_key(4);
+    debounce_key(4, events);
     break;
   case 9:
-    pressed_key(5);
+    debounce_key(5, events);
     break;
   case 10:
-    pressed_key(6);
+    debounce_key(6, events);
     break;
   case 11:
-    pressed_key(7);
+    debounce_key(7, events);
     break;
   case 12:
-    pressed_key(8);
+    debounce_key(8, events);
     break;
   case 13:
-    pressed_key(9);
+    debounce_key(9, events);
     break;
   case 14:
-    pressed_key(10);
+    debounce_key(10, events);
     break;
   case 15:
-    pressed_key(11);
+    debounce_key(11, events);
     break;
   case 16:
-    pressed_key(12);
+    debounce_key(12, events);
     break;
   case 17:
-    pressed_key(13);
+    debounce_key(13, events);
     break;
   case 22:
-    pressed_key(14);
+    debounce_key(14, events);
     break;
   case 26:
-    pressed_key(15);
+    debounce_key(15, events);
     break;
   case 27:
-    pressed_key(16);
+    debounce_key(16, events);
     break;
   case 28:
-    pressed_key(17);
+    debounce_key(17, events);
     break;
   default:
     // TODO
@@ -170,9 +210,13 @@ void init_gpio_keys() {
     gpio_init(pin);
     gpio_set_dir(pin, GPIO_IN);
     gpio_pull_up(pin); // Enable internal pull-up resistor
-    gpio_set_irq_enabled_with_callback(pin, GPIO_IRQ_EDGE_FALL, true,
-                                       &gpio_callback);
+    gpio_set_irq_enabled_with_callback(
+        pin, GPIO_IRQ_EDGE_FALL | GPIO_IRQ_EDGE_RISE, true, &gpio_callback);
   }
 }
 
-void init_keys() { init_gpio_keys(); }
+void init_keys(uint8_t *active_keys_, uint32_t *debounce_keys_) {
+  active_keys = active_keys_;
+  debounce_keys = debounce_keys_;
+  init_gpio_keys();
+}

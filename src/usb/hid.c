@@ -2,7 +2,9 @@
 #include "bsp/board.h"
 #include "config.h"
 #include "pico/platform.h"
+#include "pico/time.h"
 #include "usb_descriptors.h"
+#include <stdint.h>
 
 // For debugging and testing HID codes
 struct tracker {
@@ -97,6 +99,28 @@ static void send_hid_report(uint8_t report_id) {
   }
 }
 
+static bool has_keyboard_key = false;
+
+void send_keyboard_report(uint8_t hid_key_code, uint8_t hid_mod_code) {
+  if (!tud_hid_ready())
+    return;
+
+  if (has_keyboard_key) {
+    tud_hid_keyboard_report(REPORT_ID_KEYBOARD, 0, NULL);
+    has_keyboard_key = false;
+    return;
+  }
+
+  uint8_t keycode[6] = {0};
+
+  keycode[0] = hid_key_code;
+
+  tud_hid_keyboard_report(REPORT_ID_KEYBOARD, hid_mod_code, keycode);
+  has_keyboard_key = true;
+}
+
+void send_mouse_report() {}
+
 void hid_task(uint gpio) { send_hid_report(REPORT_ID_KEYBOARD); }
 
 // Invoked when sent REPORT successfully to host
@@ -107,13 +131,8 @@ void tud_hid_report_complete_cb(uint8_t instance, uint8_t const *report,
   (void)instance;
   (void)len;
 
-  if (t.layer == 2) {
-    t.thrd = 0;
-    t.sec = 0;
-    t.layer = 0;
-    return;
-  }
-  // send_hid_report(REPORT_ID_KEYBOARD);
+  if (has_keyboard_key)
+    send_keyboard_report(0, 0);
 }
 
 // Invoked when received GET_REPORT control request
