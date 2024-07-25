@@ -52,8 +52,11 @@ int main(void) {
     tud_task_tiny_usb();
 
     handle_debounce(time_us_32(), active_keys, debounce_keys);
-    if (active_keys[1]) {
-      pressed_key(1);
+
+    for (int i = 0; i < 18; i++) {
+      if (active_keys[i]) {
+        pressed_key(i);
+      }
     }
 
 #ifndef MAIN_HALF
