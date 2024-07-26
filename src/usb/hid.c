@@ -101,22 +101,11 @@ static void send_hid_report(uint8_t report_id) {
 
 static bool has_keyboard_key = false;
 
-void send_keyboard_report(uint8_t hid_key_code, uint8_t hid_mod_code) {
+void send_keyboard_report(uint8_t *hid_keycode, uint8_t hid_mod_code) {
   if (!tud_hid_ready())
     return;
 
-  if (has_keyboard_key) {
-    tud_hid_keyboard_report(REPORT_ID_KEYBOARD, 0, NULL);
-    has_keyboard_key = false;
-    return;
-  }
-
-  uint8_t keycode[6] = {0};
-
-  keycode[0] = hid_key_code;
-
-  tud_hid_keyboard_report(REPORT_ID_KEYBOARD, hid_mod_code, keycode);
-  has_keyboard_key = true;
+  tud_hid_keyboard_report(REPORT_ID_KEYBOARD, hid_mod_code, hid_keycode);
 }
 
 void send_mouse_report() {}
@@ -130,9 +119,6 @@ void tud_hid_report_complete_cb(uint8_t instance, uint8_t const *report,
                                 uint16_t len) {
   (void)instance;
   (void)len;
-
-  if (has_keyboard_key)
-    send_keyboard_report(0, 0);
 }
 
 // Invoked when received GET_REPORT control request

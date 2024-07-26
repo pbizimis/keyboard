@@ -129,7 +129,7 @@ void render_font(uint8_t x_offset, uint8_t y_offset, int8_t letter_spacing,
   }
 }
 
-void clear_buffer(uint8_t buffer[64][256]) {
+void clear_buffer() {
   for (int i = 0; i < 64; i++) {
     for (int j = 0; j < 256; j++) {
       buffer[i][j] = 0;

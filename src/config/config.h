@@ -40,11 +40,23 @@
 
 /* Modifiers */
 
+#define K_MOD_INDICATOR                             0x20
+
 #define K_MOD_EMPTY                                 0x00
 #define K_MOD_LCTRL                                 0x01
 #define K_MOD_LSHIFT                                0x02
 #define K_MOD_LALT                                  0x04
 #define K_MOD_LGUI                                  0x08
+
+// To distinguish between mod keys and normal keys,
+// I add the indicator since when a mod key is pressed
+// alone, I don't know if it e.g. is the 0x08 of the Modifiers
+// or the letter E
+
+#define K_MOD_LCTRL_KEYMAP                          K_ADD_MOD(K_MOD_INDICATOR, K_MOD_LCTRL)
+#define K_MOD_LSHIFT_KEYMAP                         K_ADD_MOD(K_MOD_INDICATOR, K_MOD_LSHIFT)
+#define K_MOD_LALT_KEYMAP                           K_ADD_MOD(K_MOD_INDICATOR, K_MOD_LALT)
+#define K_MOD_LGUI_KEYMAP                           K_ADD_MOD(K_MOD_INDICATOR, K_MOD_LGUI)
 
 /* Layer */
 
@@ -188,14 +200,14 @@ static const uint16_t KEYMAP[LAYER][ROWS][COLS] = {
         {K_SEMICOLON,  K_COMMA,      K_DOT,       K_P,         K_Y,          K_F,          K_G,        K_C,          K_R,        K_L},
         {K_A,          K_O,          K_E,         K_U,         K_I,          K_D,          K_H,        K_T,          K_N,        K_S},
         {K_APOSTROPHE, K_Q,          K_J,         K_K,         K_X,          K_B,          K_M,        K_W,          K_V,        K_Z},
-        {K_MOD_LCTRL,  K_MOD_LSHIFT, K_MOD_LGUI,  0x00,        0x00,         K_TO_LAYER_1, K_SPACE,    K_TO_LAYER_2, 0x00,       0x00}
+        {K_MOD_LCTRL_KEYMAP,  K_MOD_LSHIFT_KEYMAP, K_MOD_LGUI_KEYMAP,  0x00,        0x00,         K_TO_LAYER_1, K_SPACE,    K_TO_LAYER_2, 0x00,       0x00}
     },
     /* Layer 2 */
     {
         {K_1,          K_2,          K_3,          K_4,         K_5,          K_6,          K_7,        K_8,          K_9,          K_0},
         {K_PLUS,       K_LEFTBRACE,  K_LEFTCURLY,  K_LPAREN,    K_AMPERSAND,  K_EQUAL,      K_RPAREN,   K_RIGHTCURLY, K_RIGHTBRACE, K_ASTERISK},
         {K_HASH,       K_BACKSLASH,  K_UNDERSCORE, K_MINUS,     K_GRAVE,      K_PIPE,       K_EXCL,     K_PERCENT,    K_QUESTION,   K_CARET},
-        {K_MOD_LCTRL,  K_MOD_LSHIFT, K_MOD_LGUI,   0x00,        0x00,         K_TO_LAYER_1, K_SPACE,    K_TO_LAYER_2, 0x00,         0x00}
+        {K_MOD_LCTRL_KEYMAP,  K_MOD_LSHIFT_KEYMAP, K_MOD_LGUI_KEYMAP,   0x00,        0x00,         K_TO_LAYER_1, K_SPACE,    K_TO_LAYER_2, 0x00,         0x00}
     }
 };
 

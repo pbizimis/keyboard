@@ -46,18 +46,66 @@ int main(void) {
   }
   cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
 
-  int c2 = 30;
+  uint32_t starting_time = time_us_32(); // in microseconds
+  uint32_t next_time = starting_time + 1000000;
+  int polling_rate = 0;
+
+  int counter = 0;
+
+  int log_arr[3] = {0};
+
+  bool any_on;
 
   while (1) {
     tud_task_tiny_usb();
 
-    handle_debounce(time_us_32(), active_keys, debounce_keys);
+    if (time_us_32() > next_time) {
+      log_arr[counter] = polling_rate;
 
-    for (int i = 0; i < 18; i++) {
-      if (active_keys[i]) {
-        pressed_key(i);
+      polling_rate = 0;
+      next_time += 1000000;
+
+      if (counter++ == 1) {
+        char str[200];
+        sprintf(str, "LOG: %d, %d", log_arr[0], log_arr[1]);
+
+        clear_buffer();
+        render_font(20, 0, 2, 3, str, FONT_IBM_CGAthin);
+        render_buffer();
+
+        counter = 0;
       }
     }
+    polling_rate++;
+
+    /* -- REFACTOR
+
+     *
+     * For whatever reason there is a very small chance that the debounce is not
+     * correctly assigned and a key keeps being activated even though it isn't.
+     * I could only reproduce with very short switch activations about once
+     * every hundred activations. Tested on two seperate switches on two
+     * different GPIO pins. No idea why at the moment.
+     *
+     * Seems to be related to IRQ. Switched to polling and now I don't have the
+     * problem. I will leave this comment for now in case it is still a problem.
+     */
+
+    for (int i = 0; i < 18; i++) {
+      if (gpio_get(GPIO_NUMBERS[i])) {
+        // not active
+        gpio_callback(GPIO_NUMBERS[i], 1 << 3);
+      } else {
+        // active
+        gpio_callback(GPIO_NUMBERS[i], 1 << 2);
+      }
+    }
+
+    handle_debounce(time_us_32(), active_keys, debounce_keys);
+
+    pressed_key(active_keys);
+
+    /* -- REFACTOR END */
 
 #ifndef MAIN_HALF
     while (c2 < 120) {
@@ -72,28 +120,3 @@ int main(void) {
 #endif
   }
 }
-
-//--------------------------------------------------------------------+
-// Key init
-//--------------------------------------------------------------------+
-
-void gpio_callback_old(uint gpio, uint32_t events) {
-  if (gpio == 5) {
-    hid_task(5);
-  } else if (gpio == 10) {
-    hid_task(10);
-  }
-}
-
-/*
-void init_gpio_keys() {
-  for (int i = 0; i < NUM_KEYS; i++) {
-    uint pin = keys[i];
-    gpio_init(pin);
-    gpio_set_dir(pin, GPIO_IN);
-    gpio_pull_up(pin); // Enable internal pull-up resistor
-    gpio_set_irq_enabled_with_callback(pin, GPIO_IRQ_EDGE_FALL, true,
-                                       &gpio_callback);
-  }
-}
-*/

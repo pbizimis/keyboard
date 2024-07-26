@@ -47,7 +47,9 @@
 #include "hardware/timer.h"
 #include "hid.h"
 #include "oled.h"
+#include "stdio.h"
 #include <stdint.h>
+#include <string.h>
 
 #ifdef MAIN_HALF
 #define KEYMAP_HALF_START 0
@@ -60,64 +62,118 @@ uint32_t *debounce_keys;
 
 enum ACTIVE_LAYER { FIRST, SECOND, THIRD, FOURTH, FIFTH, SIXTH };
 
-struct active_modifier_keys_struct {
-  bool shift;
-};
+#define KEY_PRESS_LIMIT 10
 
-void pressed_key(uint8_t key_number) {
+// TODO
+// Don't send the same usb codes twice
 
-  static uint8_t active_layer = FIRST;
-  static struct active_modifier_keys_struct active_modifier_keys;
-  active_modifier_keys.shift = false;
+void pressed_key(uint8_t keys[18]) {
 
-  uint8_t col = KEYMAP_HALF_START + (key_number % (COLS / 2));
-  uint8_t row = KEYMAP_HALF_START + (key_number / (COLS / 2));
+  // First step: Filter each
+  uint8_t active_layer = FIRST; // Default
+  uint8_t pressed_keys[KEY_PRESS_LIMIT] = {0};
+  uint8_t pressed_keys_counter = 0;
 
-  uint16_t key_value;
-  key_value = KEYMAP[active_layer][row][col];
+  uint8_t no_key_presses = 1;
 
-  // Split modifier and key HID hex codes
-  uint8_t hid_modifier_code = (key_value >> 8) & 0xFF;
-  uint8_t hid_key_code = key_value & 0xFF;
+  // Extract all pressed keys and a layer key
+  for (int i = 0; i < 18; i++) {
+    if (keys[i]) {
 
-  /*********/
-  // Send to USB or KEYBOARD
+      no_key_presses = 0;
 
-  bool is_ascii_shift_layer = 0;
+      uint8_t col = KEYMAP_HALF_START + (i % (COLS / 2));
+      uint8_t row = KEYMAP_HALF_START + (i / (COLS / 2));
 
-  // 0x02 is LSHIFT
-  if (active_modifier_keys.shift || hid_modifier_code == 0x02) {
-    is_ascii_shift_layer = true;
+      uint16_t key_value = KEYMAP[active_layer][row][col];
+
+      // Split modifier and key HID hex codes
+      uint8_t hid_modifier_code = (key_value >> 8) & 0xFF;
+      uint8_t hid_key_code = key_value & 0xFF;
+
+      if (hid_modifier_code == 0x10) {
+        // Layer key found
+        active_layer = hid_key_code;
+      } else {
+        // Normal key found
+
+        if (pressed_keys_counter > 9) {
+          render_font(0, 0, 2, 5,
+                      "Samir, you are breaking the car (You are pressing more "
+                      "than 10 keys)",
+                      FONT_IBM_CGAthin);
+          render_buffer();
+        } else {
+          pressed_keys[pressed_keys_counter++] =
+              i + 1; // + 1 to avoid 0 as a valid pressed key
+        }
+      }
+    }
   }
 
-  // minus 4 to elimante the offset that the HID codes start at 0x04 (A)
-  char key_as_ascii = HID_TO_ASCII_MAP[hid_key_code - 4][is_ascii_shift_layer];
+  if (no_key_presses) {
+    send_keyboard_report(NULL, NULL);
+  }
 
-  char key_arr[] = {key_as_ascii, '\0'};
+  uint8_t modifier = 0x00;
+  uint8_t hid_codes[6] = {0};
+  uint8_t hid_codes_counter = 0;
+  uint8_t pressed_key_number;
 
-  render_font(0, 0, 2, 5, key_arr, FONT_IBM_BIOS);
-  render_buffer();
+  for (int i = 0; i < KEY_PRESS_LIMIT; i++) {
 
-  send_keyboard_report(hid_key_code, hid_modifier_code);
-}
+    if (pressed_keys[i] == 0)
+      continue;
 
-/****************/
-void render_arr_2(int i, int val) {
-  if (val)
-    render_font(30 + i * 8, 20, 2, 3, "1", FONT_IBM_CGAthin);
-  else
-    render_font(30 + i * 8, 20, 2, 3, "0", FONT_IBM_CGAthin);
-}
-/****************/
+    pressed_key_number = pressed_keys[i] - 1;
 
-void debounce_key(uint8_t key_number, uint32_t events) {
+    uint8_t col = KEYMAP_HALF_START + (pressed_key_number % (COLS / 2));
+    uint8_t row = KEYMAP_HALF_START + (pressed_key_number / (COLS / 2));
+
+    uint16_t key_value = KEYMAP[active_layer][row][col];
+
+    // Split modifier and key HID hex codes
+    uint8_t hid_modifier_code = (key_value >> 8) & 0xFF;
+    uint8_t hid_key_code = key_value & 0xFF;
+
+    if (hid_modifier_code == 0x20) {
+      // Mod key found, hid_key_code has mod key code
+      modifier = modifier | hid_key_code;
+    } else {
+      // Normal key found, optional mod code applied
+      modifier = modifier | hid_modifier_code;
+
+      hid_codes[hid_codes_counter++] = hid_key_code;
+    }
+  }
+
+  send_keyboard_report(hid_codes, modifier);
+
+  // FOR DISPLAY ON OLED
 
   /*
-  for (int i = 0; i < 18; i++) {
-    render_arr_2(i, active_keys[i]);
-  }
-  render_buffer();
+    // minus 4 to elimante the offset that the HID codes start at 0x04 (A)
+    char key_as_ascii = HID_TO_ASCII_MAP[hid_key_code -
+    4][is_ascii_shift_layer];
+
+    char key_arr[] = {key_as_ascii, '\0'};
+
     */
+
+  /*
+char show[32];
+sprintf(show, "%d, %d, %d, %d, %d", hid_codes[0], pressed_keys[0], modifier,
+        pressed_keys_counter, hid_codes_counter);
+// 54, 1, 0, 1, 1
+// 0, 16, 2, 1, 0
+// 54, 2, 2, 1
+
+render_font(0, 20, 2, 5, show, FONT_IBM_BIOS);
+render_buffer();
+*/
+}
+
+void debounce_key(uint8_t key_number, uint32_t events) {
 
   if (events == 1 << 2) {
     if (active_keys[key_number])
@@ -132,7 +188,7 @@ void debounce_key(uint8_t key_number, uint32_t events) {
   }
 };
 
-void gpio_callback(uint gpio, uint32_t events) {
+void gpio_callback(uint8_t gpio, uint32_t events) {
   // switch case could be replaced by:
   // counter;
   // for n in GPIO_NUMBERS
@@ -207,8 +263,8 @@ void init_gpio_keys() {
     gpio_init(pin);
     gpio_set_dir(pin, GPIO_IN);
     gpio_pull_up(pin); // Enable internal pull-up resistor
-    gpio_set_irq_enabled_with_callback(
-        pin, GPIO_IRQ_EDGE_FALL | GPIO_IRQ_EDGE_RISE, true, &gpio_callback);
+    // gpio_set_irq_enabled_with_callback(
+    // pin, GPIO_IRQ_EDGE_FALL | GPIO_IRQ_EDGE_RISE, true, &gpio_callback);
   }
 }
 
