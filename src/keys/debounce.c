@@ -17,8 +17,6 @@ void handle_debounce(uint32_t current_time, uint8_t active_keys[],
         // check if still released
         if (gpio_get(GPIO_NUMBERS[i])) {
           // still released
-          render_font(100, 55, 2, 3, "Y", FONT_IBM_CGAthin);
-          render_buffer();
           active_keys[i] = 0;
           debounce_keys[i] = 0;
         } else {

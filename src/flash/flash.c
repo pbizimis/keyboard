@@ -135,25 +135,8 @@ void save_to_flash() {
   init_flash();
 
   read_flash(flash_buffer);
-  // This should only be true after nuking flash
-  // or a new device
-  if (flash_buffer[0] == 0xFF)
-    render_font(0, 0, 2, 5, "FF", FONT_IBM_BIOS);
-  render_buffer();
 
   struct KEYBOARD_CONFIG *keyboard_config = init_config();
 
   read_flash(flash_buffer);
-  if (flash_buffer[0] == 0x00)
-    render_font(0, 10, 2, 5, "User setup", FONT_IBM_BIOS);
-
-#ifdef MAIN_HALF
-  if (flash_buffer[2] == 0x02)
-    render_font(0, 20, 2, 5, "MAIN_HALF", FONT_IBM_BIOS);
-#else
-  if (flash_buffer[2] == 0x02)
-    render_font(0, 20, 2, 5, "NOT_MAIN_HALF", FONT_IBM_BIOS);
-#endif
-
-  render_buffer();
 }
