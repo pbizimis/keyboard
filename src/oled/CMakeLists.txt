@@ -1,4 +1,4 @@
-add_library(OLED oled.c)
+add_library(OLED oled.c debug.c)
 
 target_include_directories(OLED PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
