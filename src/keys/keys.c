@@ -85,7 +85,6 @@ void send_combined_keycodes(uint8_t *hid_codes1, uint8_t *hid_codes2,
     }
   }
 
-
   send_keyboard_report(combined_codes, combined_modifier);
 }
 
@@ -159,7 +158,7 @@ render_buffer();
     pressed_key_number = pressed_keys[i] - 1;
 
     uint8_t col = KEYMAP_HALF_START + (pressed_key_number % (COLS / 2));
-    uint8_t row = KEYMAP_HALF_START + (pressed_key_number / (COLS / 2));
+    uint8_t row = pressed_key_number / (COLS / 2);
 
     uint16_t key_value = KEYMAP[active_layer][row][col];
 
