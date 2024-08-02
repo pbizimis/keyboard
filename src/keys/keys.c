@@ -43,11 +43,12 @@
 #include "keys.h"
 #include "config.h"
 #include "debounce.h"
+#include "debug.h"
 #include "hardware/gpio.h"
 #include "hardware/timer.h"
 #include "hid.h"
-#include "oled.h"
 #include "stdio.h"
+#include "uart.h"
 #include <stdint.h>
 #include <string.h>
 
@@ -64,10 +65,32 @@ enum ACTIVE_LAYER { FIRST, SECOND, THIRD, FOURTH, FIFTH, SIXTH };
 
 #define KEY_PRESS_LIMIT 10
 
-// TODO
-// Don't send the same usb codes twice
+void send_combined_keycodes(uint8_t *hid_codes1, uint8_t *hid_codes2,
+                            uint8_t modifier1, uint8_t modifier2) {
 
-void pressed_key(uint8_t keys[18]) {
+  // buf gpio0 not getting recognized
+  uint8_t combined_codes[6] = {0};
+  uint8_t combined_modifier = 0;
+
+  combined_modifier = modifier1 | modifier2;
+
+  uint8_t counter1 = 0;
+  uint8_t counter2 = 0;
+
+  for (int i = 0; i < 6; i++) {
+    if (hid_codes1[counter1] != 0) {
+      combined_codes[i] = hid_codes1[counter1++];
+    } else if (hid_codes2[counter2] != 0) {
+      combined_codes[i] = hid_codes2[counter2++];
+    }
+  }
+
+
+  send_keyboard_report(combined_codes, combined_modifier);
+}
+
+void pressed_key(uint8_t keys[18], uint8_t hid_codes_main[6],
+                 uint8_t *hid_mod) {
 
   // First step: Filter each
   uint8_t active_layer = FIRST; // Default
@@ -98,11 +121,13 @@ void pressed_key(uint8_t keys[18]) {
         // Normal key found
 
         if (pressed_keys_counter > 9) {
-          render_font(0, 0, 2, 5,
-                      "Samir, you are breaking the car (You are pressing more "
-                      "than 10 keys)",
-                      FONT_IBM_CGAthin);
-          render_buffer();
+          /*
+render_font(0, 0, 2, 5,
+            "Samir, you are breaking the car (You are pressing more "
+            "than 10 keys)",
+            FONT_IBM_CGAthin);
+render_buffer();
+*/
         } else {
           pressed_keys[pressed_keys_counter++] =
               i + 1; // + 1 to avoid 0 as a valid pressed key
@@ -111,14 +136,20 @@ void pressed_key(uint8_t keys[18]) {
     }
   }
 
-  if (no_key_presses) {
-    send_keyboard_report(NULL, NULL);
-  }
-
   uint8_t modifier = 0x00;
   uint8_t hid_codes[6] = {0};
   uint8_t hid_codes_counter = 0;
   uint8_t pressed_key_number;
+
+  if (no_key_presses) {
+// send_keyboard_report(NULL, NULL);
+#ifndef MAIN_HALF
+    send_keycodes(hid_codes, modifier);
+#endif
+    memset(hid_codes_main, 0, 6);
+    *hid_mod = 0;
+    return;
+  }
 
   for (int i = 0; i < KEY_PRESS_LIMIT; i++) {
 
@@ -147,7 +178,14 @@ void pressed_key(uint8_t keys[18]) {
     }
   }
 
-  send_keyboard_report(hid_codes, modifier);
+#ifdef MAIN_HALF
+  // send_keyboard_report(hid_codes, modifier);
+
+  memcpy(hid_codes_main, hid_codes, 6);
+  *hid_mod = modifier;
+#else
+  send_keycodes(hid_codes, modifier);
+#endif
 
   // FOR DISPLAY ON OLED
 
@@ -159,18 +197,6 @@ void pressed_key(uint8_t keys[18]) {
     char key_arr[] = {key_as_ascii, '\0'};
 
     */
-
-  /*
-char show[32];
-sprintf(show, "%d, %d, %d, %d, %d", hid_codes[0], pressed_keys[0], modifier,
-        pressed_keys_counter, hid_codes_counter);
-// 54, 1, 0, 1, 1
-// 0, 16, 2, 1, 0
-// 54, 2, 2, 1
-
-render_font(0, 20, 2, 5, show, FONT_IBM_BIOS);
-render_buffer();
-*/
 }
 
 void debounce_key(uint8_t key_number, uint32_t events) {

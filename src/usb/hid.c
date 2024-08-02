@@ -101,9 +101,21 @@ static void send_hid_report(uint8_t report_id) {
 
 static bool has_keyboard_key = false;
 
+static uint8_t last_hid_keycode[6] = {0};
+static uint8_t last_hid_mod_code = 0;
+
 void send_keyboard_report(uint8_t *hid_keycode, uint8_t hid_mod_code) {
-  if (!tud_hid_ready())
+  if (!tud_hid_ready()) {
     return;
+  }
+
+  if (memcmp(last_hid_keycode, hid_keycode, 6) == 0 &&
+      last_hid_mod_code == hid_mod_code) {
+    return;
+  }
+
+  memcpy(last_hid_keycode, hid_keycode, 6);
+  last_hid_mod_code = hid_mod_code;
 
   tud_hid_keyboard_report(REPORT_ID_KEYBOARD, hid_mod_code, hid_keycode);
 }

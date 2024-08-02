@@ -10,6 +10,7 @@
 #include "pico/time.h"
 #include "setup.h"
 #include <stdbool.h>
+#include <stdint.h>
 
 #include "debounce.h"
 #include "flash.h"
@@ -18,14 +19,14 @@
 #include "rotary.h"
 #include "uart.h"
 
+#include "debug.h"
+
 #define NUM_KEYS 2
 
 const unsigned int keys[NUM_KEYS] = {5, 10};
 
 static uint8_t active_keys[18] = {0};
 static uint32_t debounce_keys[18] = {0};
-
-void init_gpio_keys();
 
 /*------------- MAIN -------------*/
 int main(void) {
@@ -56,6 +57,11 @@ int main(void) {
 
   bool any_on;
 
+  uint8_t hid1[6] = {0};
+  uint8_t mod1 = 0;
+
+  uint8_t codes2[6] = {0};
+  uint8_t mod2 = 0;
   while (1) {
     tud_task_tiny_usb();
 
@@ -70,7 +76,7 @@ int main(void) {
         sprintf(str, "LOG: %d, %d", log_arr[0], log_arr[1]);
 
         clear_buffer();
-        render_font(20, 0, 2, 3, str, FONT_IBM_CGAthin);
+        render_font(60, 0, 2, 3, str, FONT_IBM_CGAthin);
         render_buffer();
 
         counter = 0;
@@ -78,8 +84,7 @@ int main(void) {
     }
     polling_rate++;
 
-    /* -- REFACTOR
-
+    /*
      *
      * For whatever reason there is a very small chance that the debounce is not
      * correctly assigned and a key keeps being activated even though it isn't.
@@ -103,20 +108,23 @@ int main(void) {
 
     handle_debounce(time_us_32(), active_keys, debounce_keys);
 
-    pressed_key(active_keys);
+    memset(hid1, 0, 6);
+    mod1 = 0;
 
-    /* -- REFACTOR END */
+    pressed_key(active_keys, hid1, &mod1);
 
-#ifndef MAIN_HALF
-    while (c2 < 120) {
-      uart_putc(uart0, c2++);
-      char sent[] = {83, c2};
+#ifdef MAIN_HALF
 
-      render_font(50, 40, 2, 5, sent, FONT_IBM_BIOS);
-      render_buffer();
-      sleep_ms(100);
+    receive_keycodes_polling(codes2, &mod2);
+
+    if (codes2[0] != 0 || mod2 != 0 || hid1[0] != 0 || mod1 != 0) {
+      send_combined_keycodes(hid1, codes2, mod1, mod2);
+    } else {
+      // change this but this is needed
+      // put this in send_combined
+      uint8_t empty[6] = {0};
+      send_keyboard_report(empty, 0);
     }
-
 #endif
   }
 }
