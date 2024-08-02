@@ -26,6 +26,7 @@
 const unsigned int keys[NUM_KEYS] = {5, 10};
 
 static uint8_t active_keys[18] = {0};
+static uint8_t active_keys_secondary[6] = {0};
 static uint32_t debounce_keys[18] = {0};
 
 /*------------- MAIN -------------*/
@@ -61,7 +62,6 @@ int main(void) {
   uint8_t mod1 = 0;
 
   uint8_t codes2[6] = {0};
-  uint8_t mod2 = 0;
   while (1) {
     tud_task_tiny_usb();
 
@@ -108,23 +108,11 @@ int main(void) {
 
     handle_debounce(time_us_32(), active_keys, debounce_keys);
 
-    memset(hid1, 0, 6);
-    mod1 = 0;
-
-    pressed_key(active_keys, hid1, &mod1);
-
 #ifdef MAIN_HALF
-
-    receive_keycodes_polling(codes2, &mod2);
-
-    if (codes2[0] != 0 || mod2 != 0 || hid1[0] != 0 || mod1 != 0) {
-      send_combined_keycodes(hid1, codes2, mod1, mod2);
-    } else {
-      // change this but this is needed
-      // put this in send_combined
-      uint8_t empty[6] = {0};
-      send_keyboard_report(empty, 0);
-    }
+    receive_keycodes_polling(active_keys_secondary);
+    pressed_key(active_keys, active_keys_secondary);
+#else
+    poll_secondary_half(active_keys);
 #endif
   }
 }

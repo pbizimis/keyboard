@@ -49,14 +49,9 @@
 #include "hid.h"
 #include "stdio.h"
 #include "uart.h"
+#include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
-
-#ifdef MAIN_HALF
-#define KEYMAP_HALF_START 0
-#else
-#define KEYMAP_HALF_START 5
-#endif
 
 uint8_t *active_keys;
 uint32_t *debounce_keys;
@@ -65,74 +60,80 @@ enum ACTIVE_LAYER { FIRST, SECOND, THIRD, FOURTH, FIFTH, SIXTH };
 
 #define KEY_PRESS_LIMIT 10
 
-void send_combined_keycodes(uint8_t *hid_codes1, uint8_t *hid_codes2,
-                            uint8_t modifier1, uint8_t modifier2) {
+#ifndef MAIN_HALF
+void poll_secondary_half(uint8_t keys[18]) {
+  // I don't think someone would click more than 6 keys at the same time.
+  // Even when gaming...
+  uint8_t pressed_keys[6] = {0};
+  uint8_t counter = 0;
 
-  // buf gpio0 not getting recognized
-  uint8_t combined_codes[6] = {0};
-  uint8_t combined_modifier = 0;
-
-  combined_modifier = modifier1 | modifier2;
-
-  uint8_t counter1 = 0;
-  uint8_t counter2 = 0;
-
-  for (int i = 0; i < 6; i++) {
-    if (hid_codes1[counter1] != 0) {
-      combined_codes[i] = hid_codes1[counter1++];
-    } else if (hid_codes2[counter2] != 0) {
-      combined_codes[i] = hid_codes2[counter2++];
+  for (int i = 0; i < 18; i++) {
+    if (counter == 7) {
+      debug_log_int(0, 0, 0, "MORE THAN 6 KEYS ACTIVE");
+      return;
+    }
+    if (keys[i]) {
+      pressed_keys[counter++] = i + 1; // + 1 so that index 0 is 1
     }
   }
 
-  send_keyboard_report(combined_codes, combined_modifier);
+  send_keycodes(pressed_keys);
+};
+#endif
+
+void get_layer_keys(uint8_t key, uint8_t *active_layer, uint8_t *pressed_keys,
+                    uint8_t *counter, bool primary) {
+
+  uint8_t offset = primary ? 0 : 5;
+
+  uint8_t row = (key / (COLS / 2));
+  uint8_t col = offset + (key % (COLS / 2));
+
+  uint16_t key_value = KEYMAP[0][row][col];
+
+  // Split modifier and key HID hex codes
+  uint8_t hid_modifier_code = (key_value >> 8) & 0xFF;
+  uint8_t hid_key_code = key_value & 0xFF;
+
+  if (hid_modifier_code == 0x10) {
+    // Layer key found
+    *active_layer = hid_key_code;
+  } else {
+    // Normal key found
+    if (*counter > 9) {
+      debug_log_int(0, 0, 0,
+                    "Samir, you are breaking the car (You are pressing more "
+                    "than 10 keys)");
+    } else {
+      if (primary)
+        pressed_keys[(*counter)++] =
+            key + 1 + 5 * row; // + 1 to avoid 0 as a valid pressed key
+      else
+        pressed_keys[(*counter)++] =
+            key + 1 + 5 * row + offset; // + 1 to avoid 0 as a valid pressed key
+    }
+  }
 }
 
-void pressed_key(uint8_t keys[18], uint8_t hid_codes_main[6],
-                 uint8_t *hid_mod) {
+void pressed_key(uint8_t primary_half[18],
+                 uint8_t secondary_half_pressed_keys[6]) {
 
   // First step: Filter each
   uint8_t active_layer = FIRST; // Default
   uint8_t pressed_keys[KEY_PRESS_LIMIT] = {0};
   uint8_t pressed_keys_counter = 0;
 
-  uint8_t no_key_presses = 1;
-
   // Extract all pressed keys and a layer key
   for (int i = 0; i < 18; i++) {
-    if (keys[i]) {
-
-      no_key_presses = 0;
-
-      uint8_t col = KEYMAP_HALF_START + (i % (COLS / 2));
-      uint8_t row = KEYMAP_HALF_START + (i / (COLS / 2));
-
-      uint16_t key_value = KEYMAP[active_layer][row][col];
-
-      // Split modifier and key HID hex codes
-      uint8_t hid_modifier_code = (key_value >> 8) & 0xFF;
-      uint8_t hid_key_code = key_value & 0xFF;
-
-      if (hid_modifier_code == 0x10) {
-        // Layer key found
-        active_layer = hid_key_code;
-      } else {
-        // Normal key found
-
-        if (pressed_keys_counter > 9) {
-          /*
-render_font(0, 0, 2, 5,
-            "Samir, you are breaking the car (You are pressing more "
-            "than 10 keys)",
-            FONT_IBM_CGAthin);
-render_buffer();
-*/
-        } else {
-          pressed_keys[pressed_keys_counter++] =
-              i + 1; // + 1 to avoid 0 as a valid pressed key
-        }
-      }
+    if (primary_half[i]) {
+      get_layer_keys(i, &active_layer, pressed_keys, &pressed_keys_counter, 1);
     }
+  }
+
+  for (int i = 0; i < 6; i++) {
+    if (secondary_half_pressed_keys[i])
+      get_layer_keys(secondary_half_pressed_keys[i] - 1, &active_layer,
+                     pressed_keys, &pressed_keys_counter, 0);
   }
 
   uint8_t modifier = 0x00;
@@ -140,13 +141,9 @@ render_buffer();
   uint8_t hid_codes_counter = 0;
   uint8_t pressed_key_number;
 
-  if (no_key_presses) {
-// send_keyboard_report(NULL, NULL);
-#ifndef MAIN_HALF
-    send_keycodes(hid_codes, modifier);
-#endif
-    memset(hid_codes_main, 0, 6);
-    *hid_mod = 0;
+  if (pressed_keys_counter == 0) {
+    uint8_t empty[6] = {0};
+    send_keyboard_report(empty, 0);
     return;
   }
 
@@ -157,8 +154,8 @@ render_buffer();
 
     pressed_key_number = pressed_keys[i] - 1;
 
-    uint8_t col = KEYMAP_HALF_START + (pressed_key_number % (COLS / 2));
-    uint8_t row = pressed_key_number / (COLS / 2);
+    uint8_t col = pressed_key_number % COLS;
+    uint8_t row = pressed_key_number / COLS;
 
     uint16_t key_value = KEYMAP[active_layer][row][col];
 
@@ -177,14 +174,7 @@ render_buffer();
     }
   }
 
-#ifdef MAIN_HALF
-  // send_keyboard_report(hid_codes, modifier);
-
-  memcpy(hid_codes_main, hid_codes, 6);
-  *hid_mod = modifier;
-#else
-  send_keycodes(hid_codes, modifier);
-#endif
+  send_keyboard_report(hid_codes, modifier);
 
   // FOR DISPLAY ON OLED
 
