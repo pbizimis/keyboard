@@ -1,6 +1,6 @@
 # A 36-key keyboard
 
-About two years ago I switched to a 36-key keyboard and I have not looked back since. So I thought, why not make my ideal keyboard hardware and software?
+About two years ago I switched to a 36-key keyboard and I have not looked back since. So I thought, why not make my ideal keyboard hardware and software? The keyboard hardware and software are in an early stage but the keyboard is in use as my primary keyboard. Before, I was using a 36-key split bluetooth keyboard that runs ZMK. This new one feels a lot better. Typing feels instant, I don't notice any latency. Of course, there are a few bugs.
 
 Hardware:
 
@@ -19,6 +19,15 @@ Software:
   - timer for focus
   - settings
   - snake
+
+## To Do
+### Software
+- Keys should not reactivate once a mod key is pressed
+- OLEDs should be turned off by key combination to avoid burn in
+- I need add an option for mod keys that allows keys to be pressed and held until the next key is pressed.
+### Hardware
+- I really need to redo the CAD model since there are some design flaws
+- Building the keyboard was painful. So the next change should be a flex PCB
 
 
   ## Documentation

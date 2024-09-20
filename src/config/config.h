@@ -150,6 +150,13 @@
 #define K_SLASH                                     K_ADD_MOD(K_MOD_EMPTY, K_SLASH_QUESTION)
 #define K_QUESTION                                  K_ADD_MOD(K_MOD_LSHIFT, K_SLASH_QUESTION)
 
+/* Arrow Keys */
+
+#define K_RIGHT                                     0x4F
+#define K_LEFT                                      0x50
+#define K_DOWN                                      0x51
+#define K_UP                                        0x52
+
 /* Function Keys */
 
 #define K_F1                                        0x3A
@@ -183,7 +190,14 @@ static const uint16_t KEYMAP[LAYER][ROWS][COLS] = {
         {K_PLUS,       K_LEFTBRACE,  K_LEFTCURLY,  K_LPAREN,    K_AMPERSAND,  K_EQUAL,      K_RPAREN,   K_RIGHTCURLY, K_RIGHTBRACE, K_ASTERISK},
         {K_HASH,       K_BACKSLASH,  K_UNDERSCORE, K_MINUS,     K_GRAVE,      K_PIPE,       K_EXCL,     K_PERCENT,    K_QUESTION,   K_CARET},
         {K_MOD_LCTRL_KEYMAP,  K_MOD_LSHIFT_KEYMAP, K_MOD_LGUI_KEYMAP,   0x00,        0x00,         K_TO_LAYER_1, K_SPACE,    K_TO_LAYER_2, 0x00,         0x00}
-    }
+    },
+    /* Layer 3 */
+{
+    {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, K_RIGHT},
+    {K_MOD_LALT_KEYMAP, K_TAB, K_ESC, K_ENTER, 0x00, 0x00, K_LEFT, K_TILDE, K_SLASH, K_AT},
+    {0x00, 0x00, K_DOWN, K_UP, 0x00, 0x00, K_DOLLAR, 0x00, 0x00, 0x00},
+        {K_MOD_LCTRL_KEYMAP,  K_BACKSPACE, K_MOD_LGUI_KEYMAP,   0x00,        0x00,         0x00, 0x00,    0x00, 0x00,         0x00}
+}
 };
 
 
